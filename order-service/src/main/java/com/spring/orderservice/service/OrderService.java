@@ -3,12 +3,14 @@ package com.spring.orderservice.service;
 import com.spring.orderservice.dto.InventoryResponse;
 import com.spring.orderservice.dto.OrderLineItemsDto;
 import com.spring.orderservice.dto.OrderRequest;
+import com.spring.orderservice.event.OrderPlacedEvent;
 import com.spring.orderservice.model.Order;
 import com.spring.orderservice.model.OrderLineItems;
 import com.spring.orderservice.repository.OrderRepository;
 import io.micrometer.observation.Observation;
 import io.micrometer.observation.ObservationRegistry;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.reactive.function.client.WebClient;
@@ -25,6 +27,7 @@ public class OrderService {
     private final OrderRepository orderRepository;
     private final WebClient.Builder webClientBuilder;
     private final ObservationRegistry observationRegistry;
+    private final ApplicationEventPublisher applicationEventPublisher;
 
     public String placeOrder(OrderRequest orderRequest) {
         Order order = new Order();
@@ -58,6 +61,8 @@ public class OrderService {
 
             if (allProductsInStock) {
                 orderRepository.save(order);
+                // publish Order Placed Event
+                applicationEventPublisher.publishEvent(new OrderPlacedEvent(this, order.getOrderNumber()));
                 return "Order Placed Successfully";
             } else {
                 throw new IllegalArgumentException("Product is not in stock, please try again later");
